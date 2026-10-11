@@ -56,6 +56,14 @@ def tournaments(season: str = "S16") -> list[dict]:
         raise ParseError(f"tournament list for {season} was not JSON") from e
 
 
+def is_world_championship(trname: str) -> bool:
+    """The World Championship itself, not the Esports World Cup or a regional qualifier."""
+    t = trname.lower()
+    return ("world championship" in t or re.match(r"^worlds\b", t) is not None) and (
+        "cup" not in t and "qualifier" not in t
+    )
+
+
 def is_tier1(trname: str) -> bool:
     head = trname.split(" 20")[0].strip()
     return head in TIER1 or is_international(trname) or region_of_league(trname) is not None

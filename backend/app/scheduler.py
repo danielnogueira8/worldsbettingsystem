@@ -28,15 +28,16 @@ def _refit_and_sim():
     return pipeline.simulate_and_store()["n_sims"]
 
 
-def _scrape_worlds():
-    """Pull this season's Worlds games so ratings learn from the event as it happens."""
+def _scrape_worlds() -> str:
+    """Pull this season's World Championship games so ratings learn from the event as it
+    happens."""
     from .ingest import golgg
 
-    n = 0
-    for t in golgg.tournaments("S16"):
-        if "world" in t["trname"].lower():
-            n += pipeline.upsert_games(golgg.scrape_tournament(t["trname"]))
-    return n
+    names = [
+        t["trname"] for t in golgg.tournaments("S16") if golgg.is_world_championship(t["trname"])
+    ]
+    n = sum(pipeline.upsert_games(golgg.scrape_tournament(name)) for name in names)
+    return f"{n} games from {names or 'no tournament yet'}"
 
 
 def start() -> BackgroundScheduler:
