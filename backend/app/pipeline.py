@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 from datetime import datetime
 
 import numpy as np
@@ -258,7 +259,9 @@ def upsert_markets(markets: list[dict]) -> int:
                     "fee_rate",
                 )
             }
-            fields.update(kind=c.kind, subject=c.subject, raw=m)
+            # parse_market turns endDate into a datetime; JSON columns need plain values.
+            raw = json.loads(json.dumps(m, default=str))
+            fields.update(kind=c.kind, subject=c.subject, raw=raw)
             if existing:
                 for k, v in fields.items():
                     setattr(existing, k, v)

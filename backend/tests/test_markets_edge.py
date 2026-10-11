@@ -120,3 +120,24 @@ def test_postgres_engine_options_suit_serverless_pooler():
     assert kw["pool_pre_ping"] is True
     assert kw["connect_args"] == {"prepare_threshold": None}
     assert engine_kwargs("sqlite:///x.db") == {"connect_args": {"check_same_thread": False}}
+
+
+def test_discovered_markets_store_and_price():
+    """parse_market output, including its datetime end_date, must round-trip the DB."""
+    from app import pipeline
+    from app.ingest.polymarket import parse_market
+
+    ev = {"id": 77, "title": "LoL Worlds 2026: Winner", "slug": "lol-worlds-2026-winner",
+          "negRisk": True}
+    raw = {"id": "m-gen", "question": "Will Gen.G win Worlds 2026?", "groupItemTitle": "Gen.G",
+           "outcomes": '["Yes", "No"]', "outcomePrices": '["0.33", "0.67"]',
+           "clobTokenIds": '["1", "2"]', "endDate": "2026-11-14T00:00:00Z", "active": True}
+    m = parse_market(raw, ev)
+    assert pipeline.upsert_markets([m]) == 1
+    assert pipeline.upsert_markets([m]) == 1  # second pass updates in place
+    from app.db import PmMarket, session
+
+    with session() as s:
+        row = s.get(PmMarket, "m-gen")
+        assert row.kind == "champion" and row.subject == "GEN"
+        assert row.end_date.year == 2026 and row.raw["end_date"].startswith("2026-11-14")
