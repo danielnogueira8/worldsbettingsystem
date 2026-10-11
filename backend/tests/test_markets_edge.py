@@ -111,3 +111,12 @@ def test_postgres_url_normalised_and_config_shipped_in_package():
     # The backend service deploys only backend/, so the team config must live inside it.
     assert (PACKAGE_DATA / "worlds2026.yaml").is_file()
     assert len(worlds_config()["teams"]) == 19
+
+
+def test_postgres_engine_options_suit_serverless_pooler():
+    from app.db import engine_kwargs
+
+    kw = engine_kwargs("postgresql+psycopg://u:p@h-pooler/db?sslmode=require")
+    assert kw["pool_pre_ping"] is True
+    assert kw["connect_args"] == {"prepare_threshold": None}
+    assert engine_kwargs("sqlite:///x.db") == {"connect_args": {"check_same_thread": False}}

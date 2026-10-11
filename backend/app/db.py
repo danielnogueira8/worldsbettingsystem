@@ -160,6 +160,22 @@ _engine = None
 _Session = None
 
 
+def engine_kwargs(url: str) -> dict:
+    if url.startswith("sqlite"):
+        return {"connect_args": {"check_same_thread": False}}
+    return {
+        # Neon suspends idle databases and drops their connections. Warm serverless
+        # instances keep the pool between requests, so test each connection first.
+        "pool_pre_ping": True,
+        "pool_recycle": 300,
+        "pool_size": 2,
+        "max_overflow": 3,
+        # Transaction-mode poolers (Neon's -pooler host is PgBouncer) can hand each
+        # statement to a different server, so skip server-side prepared statements.
+        "connect_args": {"prepare_threshold": None},
+    }
+
+
 def normalise_url(url: str) -> str:
     """Hosted Postgres providers hand out postgres:// or postgresql:// URLs.
     SQLAlchemy maps those to psycopg2; this project ships psycopg 3."""
@@ -173,8 +189,7 @@ def engine():
     global _engine, _Session
     if _engine is None:
         url = normalise_url(settings().db_url)
-        kw = {"connect_args": {"check_same_thread": False}} if url.startswith("sqlite") else {}
-        _engine = create_engine(url, **kw)
+        _engine = create_engine(url, **engine_kwargs(url))
         Base.metadata.create_all(_engine)
         _Session = sessionmaker(_engine, expire_on_commit=False)
     return _engine
