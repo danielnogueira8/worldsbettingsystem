@@ -180,3 +180,9 @@ td.q { max-width: 380px; }
 .value.good { background: var(--good-bg); color: var(--good); }
 .champ { display: flex; gap: 16px; align-items: baseline; flex-wrap: wrap; }
 .champ .big { font-size: 22px; font-weight: 600; }
+
+/* Value table: keep the bet readable on phones; odds columns repeat the chance columns. */
+td.q { min-width: 180px; }
+@media (max-width: 640px) {
+  .wide-only { display: none; }
+}
