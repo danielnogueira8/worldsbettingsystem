@@ -13,6 +13,11 @@ export type Status = {
   bankroll: number;
   kelly_fraction: number;
   max_position: number;
+  pipeline: {
+    last_tick?: string;
+    last_bootstrap?: string;
+    steps: Record<string, { ok: boolean; at: string; ok_at?: string; result?: string; error?: string | null }>;
+  };
 };
 
 export type Team = {
@@ -81,7 +86,7 @@ export const api = {
   status: () => req<Status>("/api/status"),
   teams: () => req<{ teams: Team[]; regions: Record<string, number>; side: number | null; n_games: number }>("/api/teams"),
   simulation: () => req<Simulation | Record<string, never>>("/api/simulation"),
-  runSimulation: (draws = 40) => req<Simulation>("/api/simulation/run", { method: "POST", body: JSON.stringify({ draws }) }),
+  runSimulation: (draws = 1000) => req<Simulation>("/api/simulation/run", { method: "POST", body: JSON.stringify({ draws }) }),
   fit: () => req<{ n_games: number }>("/api/fit", { method: "POST" }),
   edges: () => req<{ edges: EdgeRow[]; structural: Structural[] }>("/api/edges"),
   ticks: (id: string) => req<{ ts: string; bid: number | null; ask: number | null; mid: number | null }[]>(`/api/markets/${encodeURIComponent(id)}/ticks`),

@@ -122,6 +122,24 @@ Things that behave differently on Vercel:
 - **Data loading.** Load match data from your machine with the CLI, pointing
   `DATABASE_URL` at the same Postgres database the deployment uses.
 
+## Running the pipeline on GitHub Actions
+
+`.github/workflows/pipeline.yml` runs the data pipeline on GitHub's runners against the
+production database, so nothing has to stay running on your machine.
+
+1. Add a repository secret `DATABASE_URL` with the pooled Postgres URL
+   (Settings, Secrets and variables, Actions). Without it the workflow does nothing.
+2. Run the workflow once by hand with task `bootstrap`. It loads
+   `data/oracles/*.csv.gz`, fits, backtests, simulates, finds the Polymarket markets
+   and polls their prices.
+3. After that, `tick` runs every 10 minutes on its own. It polls prices every run,
+   rediscovers markets and pulls Worlds games from gol.gg hourly, refits and
+   re-simulates every 2 hours or when new games arrive, and backtests daily.
+
+A failing step doesn't fail the run. It shows as a warning banner on the dashboard with
+the error and when it last succeeded. GitHub runs scheduled workflows from the default
+branch, and its schedule can lag by several minutes under load.
+
 ## Configuration
 
 Environment variables, all optional:

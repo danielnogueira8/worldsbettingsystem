@@ -87,6 +87,25 @@ class Format:
         )
 
 
+def _interval(frac: np.ndarray, n: int, z: float = 1.645):
+    """Mean and 90% interval of P(event | team strengths) across posterior draws.
+
+    frac has shape (n_draws, k): the share of the n tournaments run for each draw in which
+    the event happened. Its spread across draws mixes two things: real parameter
+    uncertainty, and binomial noise from running only n tournaments per draw. Many draws
+    with few tournaments each gives the most stable mean for a fixed budget, but then the
+    binomial noise dominates the raw spread. So subtract it: the within-draw variance of a
+    share is p(1-p)/n, estimated without bias by frac(1-frac)/(n-1).
+    """
+    mean = frac.mean(axis=0)
+    if frac.shape[0] < 2:
+        return mean, mean, mean
+    total = frac.var(axis=0, ddof=1)
+    within = (frac * (1 - frac)).mean(axis=0) / max(n - 1, 1)
+    sd = np.sqrt(np.clip(total - within, 0, None))
+    return mean, np.clip(mean - z * sd, 0, 1), np.clip(mean + z * sd, 0, 1)
+
+
 class _NoPairing(Exception):
     pass
 
@@ -300,24 +319,20 @@ class Simulator:
         n = self.sims_per_draw
         out_teams = {}
         for k, arr in per_draw.items():
-            frac = arr / n
+            mean, lo, hi = _interval(arr / n, n)
             out_teams[k] = {
-                "p": dict(zip(teams, frac.mean(axis=0).round(5).tolist(), strict=True)),
-                "lo": dict(
-                    zip(teams, np.quantile(frac, 0.05, axis=0).round(5).tolist(), strict=True)
-                ),
-                "hi": dict(
-                    zip(teams, np.quantile(frac, 0.95, axis=0).round(5).tolist(), strict=True)
-                ),
+                "p": dict(zip(teams, mean.round(5).tolist(), strict=True)),
+                "lo": dict(zip(teams, lo.round(5).tolist(), strict=True)),
+                "hi": dict(zip(teams, hi.round(5).tolist(), strict=True)),
             }
         regions = sorted(set(self.f.region.values()))
 
         def summ(arr):
-            fr = arr / n
+            mean, lo, hi = _interval((arr / n)[:, None], n)
             return {
-                "p": round(float(fr.mean()), 5),
-                "lo": round(float(np.quantile(fr, 0.05)), 5),
-                "hi": round(float(np.quantile(fr, 0.95)), 5),
+                "p": round(float(mean[0]), 5),
+                "lo": round(float(lo[0]), 5),
+                "hi": round(float(hi[0]), 5),
             }
 
         return {

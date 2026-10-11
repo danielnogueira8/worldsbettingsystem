@@ -85,6 +85,12 @@ function Banners({ s, error }: { s: Status | null; error: string | null }) {
       ) : (
         <div className="banner good"><strong>Model validated.</strong> Beats Elo and the market on held-out games.</div>
       )}
+      {Object.entries(s.pipeline?.steps ?? {}).filter(([, v]) => !v.ok).map(([k, v]) => (
+        <div key={k} className="banner warning">
+          <strong>Pipeline step failing: {k.replace(/_/g, " ")}.</strong>
+          {v.error} <span className="small">Last success {ago(v.ok_at ?? null)}.</span>
+        </div>
+      ))}
       <div className="stats">
         <Stat k="Games" v={s.games.toLocaleString()} />
         <Stat k="Latest game" v={ago(s.last_game)} />
@@ -92,6 +98,7 @@ function Banners({ s, error }: { s: Status | null; error: string | null }) {
         <Stat k="Last price" v={ago(s.last_price_tick)} />
         <Stat k="Last fit" v={ago(s.last_fit)} />
         <Stat k="Last sim" v={ago(s.last_simulation)} />
+        <Stat k="Pipeline run" v={ago(s.pipeline?.last_tick ?? s.pipeline?.last_bootstrap ?? null)} />
         <Stat k="Bankroll" v={`$${s.bankroll.toLocaleString()} · ${s.kelly_fraction}× Kelly`} />
       </div>
     </>

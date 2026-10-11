@@ -79,7 +79,7 @@ def fit():
 
 
 @app.command()
-def simulate(draws: int = 40, sims_per_draw: int | None = None, seed: int | None = None):
+def simulate(draws: int = 1000, sims_per_draw: int | None = None, seed: int | None = None):
     res = pipeline.simulate_and_store(draws, sims_per_draw, seed)
     champ = sorted(res["teams"]["champion"]["p"].items(), key=lambda x: -x[1])[:8]
     _p({"n_sims": res["n_sims"], "top_champion_odds": champ})
@@ -105,6 +105,27 @@ def backtest(all_games: bool = False, since: str | None = None):
     )
     res.pop("predictions", None)
     _p(res)
+
+
+@app.command()
+def bootstrap(oracles: str = "../data/oracles/*.csv.gz"):
+    """Load match data, fit, backtest, simulate, discover markets, poll prices."""
+    import sys
+
+    from . import jobs
+
+    ok = jobs.bootstrap(oracles)
+    sys.exit(0 if ok else 1)
+
+
+@app.command()
+def tick():
+    """One scheduler cycle: poll prices; discover, scrape, refit and backtest when due."""
+    from . import jobs
+
+    state = jobs.tick()
+    failed = [k for k, v in state["steps"].items() if not v.get("ok")]
+    typer.echo(f"tick done; failing steps: {failed or 'none'}")
 
 
 @app.command()

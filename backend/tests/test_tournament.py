@@ -111,3 +111,26 @@ def test_matchup_interval(fmt):
     assert m["lo"] <= m["p"] <= m["hi"]
     m2 = sim.matchup("T1", "GEN", 5)
     assert m["p"] + m2["p"] == pytest.approx(1)
+
+
+def test_interval_removes_simulation_noise():
+    from app.model.tournament import _interval
+
+    rng = np.random.default_rng(0)
+    # Every draw has the same true probability: all spread is binomial noise.
+    frac = rng.binomial(20, 0.3, size=(4000, 1)) / 20
+    mean, lo, hi = _interval(frac, 20)
+    assert abs(mean[0] - 0.3) < 0.01
+    assert hi[0] - lo[0] < 0.05  # raw quantiles of frac would span roughly 0.15-0.45
+    # Real parameter spread survives: true p varies across draws with sd 0.1.
+    p = np.clip(rng.normal(0.4, 0.1, size=(4000, 1)), 0, 1)
+    frac = rng.binomial(20, p) / 20
+    _, lo, hi = _interval(frac, 20)
+    implied_sd = (hi[0] - lo[0]) / (2 * 1.645)
+    assert abs(implied_sd - 0.1) < 0.02
+
+
+def test_many_draws_give_stable_mean(fmt):
+    vals = [make(fmt, n_draws=300, spd=10, seed=s).run()["teams"]["champion"]["p"]["GEN"]
+            for s in range(3)]
+    assert max(vals) - min(vals) < 0.04

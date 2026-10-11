@@ -42,7 +42,7 @@ class BetPatch(BaseModel):
 
 
 class SimIn(BaseModel):
-    draws: int = 40
+    draws: int = 1000
     sims_per_draw: int | None = None
 
 
@@ -76,6 +76,8 @@ def create_app(schedule: bool = False) -> FastAPI:
         sim = pipeline.latest_simulation()
         bt = pipeline.latest_backtest()
         st = settings()
+        from ..jobs import status as pipeline_status
+
         return {
             "demo": pipeline.is_demo(),
             "games": n_games,
@@ -89,6 +91,7 @@ def create_app(schedule: bool = False) -> FastAPI:
             "bankroll": st.bankroll,
             "kelly_fraction": st.kelly_fraction,
             "max_position": st.max_position_frac,
+            "pipeline": pipeline_status(),
         }
 
     @app.get("/api/teams")
