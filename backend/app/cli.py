@@ -118,6 +118,27 @@ def bootstrap(oracles: str = "../data/oracles/*.csv.gz"):
     sys.exit(0 if ok else 1)
 
 
+@app.command("check-edges")
+def check_edges():
+    """Build the /api/edges payload exactly as the API does and validate it as JSON."""
+    import time
+
+    from fastapi.testclient import TestClient
+
+    from .api.main import create_app
+
+    t = time.time()
+    r = TestClient(create_app(), raise_server_exceptions=True).get("/api/edges")
+    typer.echo(f"/api/edges -> {r.status_code} in {time.time() - t:.1f}s, {len(r.content)} bytes")
+    d = r.json()
+    kinds = {}
+    for e in d["edges"]:
+        kinds[e["kind"]] = kinds.get(e["kind"], 0) + 1
+    typer.echo(f"kinds: {kinds}")
+    for e in d["edges"][:10]:
+        typer.echo(f"  {e['question'][:60]:60} {e['kind']:16} {e.get('edge')}")
+
+
 @app.command()
 def tick():
     """One scheduler cycle: poll prices; discover, scrape, refit and backtest when due."""
