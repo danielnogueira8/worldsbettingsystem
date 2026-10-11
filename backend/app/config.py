@@ -10,7 +10,6 @@ from pathlib import Path
 import yaml
 
 ROOT = Path(__file__).resolve().parents[2]
-PACKAGE_DATA = Path(__file__).resolve().parent / "data"
 ON_VERCEL = bool(os.getenv("VERCEL"))
 
 # Vercel's filesystem is read-only except /tmp, and /tmp does not survive between
@@ -31,7 +30,10 @@ def _db_url() -> str:
 class Settings:
     data_dir: Path = _DATA_DIR
     db_url: str = _db_url()
-    worlds_config: Path = Path(os.getenv("WBS_WORLDS_CONFIG", PACKAGE_DATA / "worlds2026.yaml"))
+    # Optional path to a YAML file replacing the built-in field in app/field.py.
+    worlds_config: Path | None = (
+        Path(os.environ["WBS_WORLDS_CONFIG"]) if os.getenv("WBS_WORLDS_CONFIG") else None
+    )
 
     # Scraping
     http_delay_s: float = float(os.getenv("WBS_HTTP_DELAY", "2.0"))
@@ -71,5 +73,10 @@ def settings() -> Settings:
 
 @lru_cache
 def worlds_config() -> dict:
-    with open(settings().worlds_config) as f:
-        return yaml.safe_load(f)
+    path = settings().worlds_config
+    if path is not None:
+        with open(path) as f:
+            return yaml.safe_load(f)
+    from .field import WORLDS_2026_YAML
+
+    return yaml.safe_load(WORLDS_2026_YAML)

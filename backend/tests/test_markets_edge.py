@@ -101,16 +101,26 @@ def test_overround():
     assert not o["arb"] and o["buy_all_yes_profit"] < 0
 
 
-def test_postgres_url_normalised_and_config_shipped_in_package():
-    from app.config import PACKAGE_DATA, worlds_config
+def test_postgres_url_normalised_and_field_loads():
+    from app.config import worlds_config
     from app.db import normalise_url
 
     assert normalise_url("postgres://u:p@h/db") == "postgresql+psycopg://u:p@h/db"
     assert normalise_url("postgresql://u:p@h/db") == "postgresql+psycopg://u:p@h/db"
     assert normalise_url("sqlite:///x.db") == "sqlite:///x.db"
-    # The backend service deploys only backend/, so the team config must live inside it.
-    assert (PACKAGE_DATA / "worlds2026.yaml").is_file()
     assert len(worlds_config()["teams"]) == 19
+
+
+def test_backend_package_is_python_only():
+    """Vercel's Python bundler ships .py files only. A data file in app/ works in tests and
+    CI, then raises FileNotFoundError in production (it did, with worlds2026.yaml)."""
+    from pathlib import Path
+
+    import app
+
+    root = Path(app.__file__).parent
+    stray = [p for p in root.rglob("*") if p.is_file() and p.suffix not in (".py", ".pyc")]
+    assert stray == [], f"non-Python files in the backend package: {stray}"
 
 
 def test_postgres_engine_options_suit_serverless_pooler():
