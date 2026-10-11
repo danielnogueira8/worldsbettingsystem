@@ -179,7 +179,7 @@ def event_state() -> EventState:
 
 
 def build_simulator(
-    rf: RatingFit, n_draws: int = 40, sims_per_draw: int = 500, seed: int | None = None
+    rf: RatingFit, n_draws: int = 1000, sims_per_draw: int = 20, seed: int | None = None
 ) -> Simulator:
     fmt = Format.from_config(worlds_config())
     rng = np.random.default_rng(seed)
@@ -188,7 +188,7 @@ def build_simulator(
 
 
 def simulate_and_store(
-    n_draws: int = 40, sims_per_draw: int | None = None, seed: int | None = None
+    n_draws: int = 1000, sims_per_draw: int | None = None, seed: int | None = None
 ) -> dict:
     lf = latest_fit()
     if lf is None:
