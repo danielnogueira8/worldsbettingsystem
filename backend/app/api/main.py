@@ -7,7 +7,7 @@ from pathlib import Path
 
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import FileResponse
+from fastapi.responses import FileResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 from sqlalchemy import func, select
@@ -56,6 +56,18 @@ def create_app(schedule: bool = False) -> FastAPI:
     app.add_middleware(
         CORSMiddleware, allow_origins=["*"], allow_methods=["*"], allow_headers=["*"]
     )
+
+    @app.exception_handler(Exception)
+    async def _unhandled(request, exc: Exception):
+        # Surface the real cause in the dashboard instead of a bare "500".
+        import logging
+        import traceback
+
+        logging.getLogger("wbs.api").error("".join(traceback.format_exception(exc)))
+        return JSONResponse(
+            status_code=500,
+            content={"detail": f"{request.url.path}: {type(exc).__name__}: {exc}"[:500]},
+        )
 
     if schedule:
         from ..scheduler import start

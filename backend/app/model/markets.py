@@ -44,6 +44,9 @@ def classify(
     ctx = f"{event_title} {q}"
     if not _has(ctx, r"worlds", r"world championship"):
         return Classified("unsupported", reason="not a Worlds market")
+    if _has(ctx, r"qualify for worlds"):
+        # Qualifying *for* the event: the field is already set, these markets are settled.
+        return Classified("unsupported", reason="qualification to Worlds, already decided")
     if _has(
         ctx,
         r"\bmvp\b",
@@ -63,6 +66,9 @@ def classify(
         a = find_in_text(outcomes[0])
         b = find_in_text(outcomes[1])
         if len(a) == 1 and len(b) == 1:
+            # "Game 3 Winner" is one game, whatever series length the event title names.
+            if re.search(r"\bgame\s*\d+\s*winner\b", q, re.IGNORECASE):
+                return Classified("match", f"{a[0]}|{b[0]}|1")
             bo = re.search(r"\bbo\s?([135])\b", ctx, re.IGNORECASE)
             if not bo:
                 return Classified("unsupported", reason="match market without Bo length")
@@ -89,7 +95,7 @@ def classify(
         return Classified("semis", t)
     if _has(ctx, r"\bfinals?\b", r"make the final", r"reach the final") and not _has(ctx, r"win"):
         return Classified("final", t)
-    if _has(ctx, r"knockout", r"quarter", r"playoffs?", r"advance", r"qualify", r"top 8"):
+    if _has(ctx, r"knockout", r"quarter", r"playoffs?", r"advance", r"top 8"):
         return Classified("knockout", t)
     if _has(ctx, r"\bwin", r"winner", r"champion"):
         return Classified("champion", t)

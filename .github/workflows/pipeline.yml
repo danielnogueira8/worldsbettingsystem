@@ -10,7 +10,7 @@ on:
       task:
         description: "bootstrap loads match data and runs everything once; tick is one scheduler cycle"
         type: choice
-        options: [tick, bootstrap]
+        options: [tick, bootstrap, check-edges]
         default: tick
 
 concurrency:

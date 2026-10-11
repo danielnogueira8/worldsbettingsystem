@@ -141,3 +141,28 @@ def test_discovered_markets_store_and_price():
         row = s.get(PmMarket, "m-gen")
         assert row.kind == "champion" and row.subject == "GEN"
         assert row.end_date.year == 2026 and row.raw["end_date"].startswith("2026-11-14")
+
+
+def test_classify_qualification_and_single_games():
+    assert classify("Will FURIA Qualify for Worlds 2026?", "Team to Qualify for Worlds 2026?",
+                    "").kind == "unsupported"
+    ev = "LoL: Cloud9 vs Karmine Corp (BO5) - Worlds Play-In"
+    c = classify("LoL: Cloud9 vs Karmine Corp - Game 3 Winner", ev, "", ["Cloud9", "Karmine Corp"])
+    assert (c.kind, c.subject) == ("match", "C9|KC|1")
+    c = classify(ev, ev, "", ["Cloud9", "Karmine Corp"])
+    assert (c.kind, c.subject) == ("match", "C9|KC|5")
+
+
+def test_api_errors_carry_their_cause(monkeypatch):
+    from fastapi.testclient import TestClient
+
+    from app import pipeline
+    from app.api.main import create_app
+
+    def boom():
+        raise RuntimeError("kaboom")
+
+    monkeypatch.setattr(pipeline, "compute_edges", boom)
+    r = TestClient(create_app(), raise_server_exceptions=False).get("/api/edges")
+    assert r.status_code == 500
+    assert r.json()["detail"] == "/api/edges: RuntimeError: kaboom"

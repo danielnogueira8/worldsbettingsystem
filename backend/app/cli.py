@@ -118,6 +118,38 @@ def bootstrap(oracles: str = "../data/oracles/*.csv.gz"):
     sys.exit(0 if ok else 1)
 
 
+@app.command("check-edges")
+def check_edges():
+    """Build the /api/edges payload exactly as the API does and validate it as JSON."""
+    import time
+
+    from fastapi.testclient import TestClient
+
+    from .api.main import create_app
+
+    t = time.time()
+    r = TestClient(create_app(), raise_server_exceptions=True).get("/api/edges")
+    typer.echo(f"/api/edges -> {r.status_code} in {time.time() - t:.1f}s, {len(r.content)} bytes")
+    d = r.json()
+    kinds = {}
+    for e in d["edges"]:
+        kinds[e["kind"]] = kinds.get(e["kind"], 0) + 1
+    typer.echo(f"kinds: {kinds}")
+    by_event: dict[str, list] = {}
+    for e in d["edges"]:
+        by_event.setdefault(e.get("event") or "?", []).append(e)
+    for ev, rows in sorted(by_event.items()):
+        typer.echo(f"== {ev} ({len(rows)})")
+        for e in rows[:25]:
+            m = (e.get("model") or {}).get("p")
+            mp = f"{m:.3f}" if m is not None else "  -  "
+            mid = f"{e['mid']:.3f}" if e.get("mid") is not None else "  -  "
+            typer.echo(
+                f"   {e['kind'][:12]:12} {e.get('subject') or '':12} model={mp} mid={mid} | "
+                f"{e['question'][:70]}"
+            )
+
+
 @app.command()
 def tick():
     """One scheduler cycle: poll prices; discover, scrape, refit and backtest when due."""
