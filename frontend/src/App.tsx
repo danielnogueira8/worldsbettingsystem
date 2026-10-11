@@ -3,6 +3,7 @@ import { api, ago, type Status } from "./api";
 import { useLoad } from "./hooks";
 import Dashboard from "./pages/Dashboard";
 import SimulationPage from "./pages/Simulation";
+import MatchesPage from "./pages/Matches";
 import TeamsPage from "./pages/Teams";
 import MarketsPage from "./pages/Markets";
 import ResultsPage from "./pages/Results";
@@ -11,6 +12,7 @@ import JournalPage from "./pages/Journal";
 
 const TABS = [
   ["edges", "Edges"],
+  ["matches", "Matches"],
   ["sim", "Simulation"],
   ["teams", "Teams"],
   ["markets", "Markets"],
@@ -49,6 +51,7 @@ export default function App() {
       </header>
       <Banners s={status.data} error={status.error} />
       {tab === "edges" && <Dashboard status={status.data} onChange={status.reload} />}
+      {tab === "matches" && <MatchesPage />}
       {tab === "sim" && <SimulationPage />}
       {tab === "teams" && <TeamsPage />}
       {tab === "markets" && <MarketsPage />}

@@ -80,6 +80,8 @@ def parse_market(m: dict, ev: dict | None = None) -> dict:
         "active": bool(m.get("active", True)),
         "closed": bool(m.get("closed", False)),
         "end_date": _dt(m.get("endDate") or (ev or {}).get("endDate")),
+        # Sports markets carry the scheduled start of the match itself.
+        "start_time": _dt(m.get("gameStartTime") or (ev or {}).get("startTime")),
         "volume": _f(m.get("volumeNum") or m.get("volume")),
         "liquidity": _f(m.get("liquidityNum") or m.get("liquidity")),
         "fee_rate": fee_bps / 10000 if fee_bps else None,

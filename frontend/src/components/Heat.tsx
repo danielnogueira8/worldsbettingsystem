@@ -1,8 +1,11 @@
 const STEPS = 8;
 
 /** Sequential single-hue cell. Text stays in text tokens; color only fills. */
-export default function Heat({ v, lo, hi }: { v: number; lo?: number; hi?: number }) {
-  const step = v <= 0 ? 0 : Math.min(STEPS - 1, 1 + Math.floor(Math.sqrt(v) * (STEPS - 1)));
+/** `linear` suits even-money quantities like match odds; the default square-root scale
+ *  spreads out the small probabilities typical of tournament outcomes. */
+export default function Heat({ v, lo, hi, linear = false }: { v: number; lo?: number; hi?: number; linear?: boolean }) {
+  const t = linear ? v : Math.sqrt(v);
+  const step = v <= 0 ? 0 : Math.min(STEPS - 1, 1 + Math.floor(t * (STEPS - 1)));
   const title = lo != null && hi != null
     ? `${(v * 100).toFixed(1)}% (90%: ${(lo * 100).toFixed(1)}–${(hi * 100).toFixed(1)}%)`
     : `${(v * 100).toFixed(1)}%`;
