@@ -63,3 +63,36 @@ def test_loader_regions_and_single_region_qualifier(tmp_path):
     assert games["oe:g4"]["blue_region"] == "LPL" and games["oe:g4"]["red_region"] == "LCK"
     assert games["oe:g2"]["blue_win"] is False and games["oe:g1"]["blue_win"] is True
     assert games["oe:g1"]["gold_diff_15"] == 500.0
+
+
+def test_world_championship_filter():
+    from app.ingest.golgg import is_world_championship
+
+    assert is_world_championship("World Championship 2026")
+    assert is_world_championship("Worlds 2026 Play-In")
+    assert not is_world_championship("Esports World Cup 2026")
+    assert not is_world_championship("LPL 2026 Worlds Qualifier")
+    assert not is_world_championship("LCK 2026 Rounds 1-2")
+
+
+def test_prune_games_drops_other_tournaments_only():
+    from datetime import datetime
+
+    from app import pipeline
+    from app.ingest.golgg import is_world_championship
+
+    base = {"source": "golgg", "date": datetime(2026, 7, 1), "league": "x",
+            "is_international": True, "patch": None, "blue_team": "T1", "red_team": "G2",
+            "blue_region": "LCK", "red_region": "LEC", "blue_win": True, "duration_s": None,
+            "gold_diff_15": None, "series_id": None}
+    pipeline.upsert_games([
+        {**base, "id": "golgg:t1", "tournament": "Esports World Cup 2026"},
+        {**base, "id": "golgg:t2", "tournament": "World Championship 2026"},
+        {**base, "id": "oe:t3", "source": "oracles", "tournament": "EWC 2026"},
+    ])
+    before = pipeline.game_count()
+    assert pipeline.prune_games("golgg", is_world_championship) == 1
+    assert pipeline.game_count() == before - 1
+    assert pipeline.prune_games("golgg", is_world_championship) == 0
+    pipeline.prune_games("golgg", lambda t: False)
+    pipeline.prune_games("oracles", lambda t: t != "EWC 2026")

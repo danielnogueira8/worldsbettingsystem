@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+from collections.abc import Callable
 from datetime import datetime
 
 import numpy as np
@@ -38,6 +39,17 @@ def upsert_games(rows: list[dict]) -> int:
     return len(rows)
 
 
+def prune_games(source: str, keep: Callable[[str], bool]) -> int:
+    """Delete games from `source` whose tournament name fails `keep`."""
+    with session() as s:
+        rows = s.execute(select(Game.id, Game.tournament).where(Game.source == source)).all()
+        drop = [gid for gid, t in rows if not keep(t or "")]
+        if drop:
+            s.execute(delete(Game).where(Game.id.in_(drop)))
+            s.commit()
+    return len(drop)
+
+
 def _canon(name: str) -> str:
     return resolve(name) or name
 
@@ -66,6 +78,11 @@ def game_rows(before: datetime | None = None) -> list[tuple[str, GameRow]]:
                 )
             )
         return out
+
+
+def game_count() -> int:
+    with session() as s:
+        return s.scalar(select(func.count()).select_from(Game)) or 0
 
 
 def is_demo() -> bool:

@@ -16,6 +16,7 @@ from glob import glob
 
 from . import pipeline
 from .db import KV, session
+from .ingest.golgg import is_world_championship as golgg_keep
 
 DISCOVER_EVERY = timedelta(minutes=55)
 SCRAPE_EVERY = timedelta(minutes=55)
@@ -104,11 +105,16 @@ def tick() -> dict:
     if _due(state, "pm_discover", DISCOVER_EVERY, now):
         _run(state, "pm_discover", pipeline.discover_markets)
     _run(state, "pm_poll", pipeline.poll_prices)
+    # gol.gg only supplies World Championship games; Oracle's Elixir covers the rest. An
+    # earlier filter also pulled the Esports World Cup, which double-counted those games.
+    pruned = pipeline.prune_games("golgg", golgg_keep)
+    if pruned:
+        print(f"[ok]   pruned {pruned} gol.gg games outside the World Championship")
     if _due(state, "golgg_worlds", SCRAPE_EVERY, now):
-        before = state["steps"].get("golgg_worlds", {}).get("result")
+        before = pipeline.game_count()
         if _run(state, "golgg_worlds", _scrape_worlds):
-            new_games = state["steps"]["golgg_worlds"]["result"] != before
-    if new_games or _due(state, "refit_simulate", REFIT_EVERY, now):
+            new_games = pipeline.game_count() != before
+    if new_games or pruned or _due(state, "refit_simulate", REFIT_EVERY, now):
         _run(state, "refit_simulate", _refit_and_simulate)
     if _due(state, "backtest", BACKTEST_EVERY, now):
         _run(state, "backtest", _backtest)
