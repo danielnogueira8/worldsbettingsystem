@@ -1,5 +1,4 @@
 data/*
-!data/worlds2026.yaml
 !data/gpr.example.csv
 *.sqlite
 *.db

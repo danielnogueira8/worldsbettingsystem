@@ -99,3 +99,15 @@ def test_overround():
     assert overround([0.3, 0.3, 0.3], [0.29, 0.29, 0.29])["arb"]
     o = overround([0.35, 0.35, 0.35], [0.33, 0.33, 0.33])
     assert not o["arb"] and o["buy_all_yes_profit"] < 0
+
+
+def test_postgres_url_normalised_and_config_shipped_in_package():
+    from app.config import PACKAGE_DATA, worlds_config
+    from app.db import normalise_url
+
+    assert normalise_url("postgres://u:p@h/db") == "postgresql+psycopg://u:p@h/db"
+    assert normalise_url("postgresql://u:p@h/db") == "postgresql+psycopg://u:p@h/db"
+    assert normalise_url("sqlite:///x.db") == "sqlite:///x.db"
+    # The backend service deploys only backend/, so the team config must live inside it.
+    assert (PACKAGE_DATA / "worlds2026.yaml").is_file()
+    assert len(worlds_config()["teams"]) == 19

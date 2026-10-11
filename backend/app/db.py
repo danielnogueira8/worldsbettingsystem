@@ -160,10 +160,19 @@ _engine = None
 _Session = None
 
 
+def normalise_url(url: str) -> str:
+    """Hosted Postgres providers hand out postgres:// or postgresql:// URLs.
+    SQLAlchemy maps those to psycopg2; this project ships psycopg 3."""
+    for prefix in ("postgres://", "postgresql://"):
+        if url.startswith(prefix):
+            return "postgresql+psycopg://" + url[len(prefix) :]
+    return url
+
+
 def engine():
     global _engine, _Session
     if _engine is None:
-        url = settings().db_url
+        url = normalise_url(settings().db_url)
         kw = {"connect_args": {"check_same_thread": False}} if url.startswith("sqlite") else {}
         _engine = create_engine(url, **kw)
         Base.metadata.create_all(_engine)

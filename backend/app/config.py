@@ -10,13 +10,28 @@ from pathlib import Path
 import yaml
 
 ROOT = Path(__file__).resolve().parents[2]
+PACKAGE_DATA = Path(__file__).resolve().parent / "data"
+ON_VERCEL = bool(os.getenv("VERCEL"))
+
+# Vercel's filesystem is read-only except /tmp, and /tmp does not survive between
+# invocations. Anything that must persist (games, prices, bets) needs a real database:
+# set DATABASE_URL (or WBS_DB_URL) to a Postgres URL.
+_DEFAULT_DATA = Path("/tmp/wbs") if ON_VERCEL else ROOT / "data"
+_DATA_DIR = Path(os.getenv("WBS_DATA_DIR", _DEFAULT_DATA))
+
+
+def _db_url() -> str:
+    for var in ("WBS_DB_URL", "DATABASE_URL", "POSTGRES_URL"):
+        if os.getenv(var):
+            return os.environ[var]
+    return f"sqlite:///{_DATA_DIR / 'wbs.sqlite'}"
 
 
 @dataclass(frozen=True)
 class Settings:
-    data_dir: Path = Path(os.getenv("WBS_DATA_DIR", ROOT / "data"))
-    db_url: str = os.getenv("WBS_DB_URL", f"sqlite:///{ROOT / 'data' / 'wbs.sqlite'}")
-    worlds_config: Path = Path(os.getenv("WBS_WORLDS_CONFIG", ROOT / "data" / "worlds2026.yaml"))
+    data_dir: Path = _DATA_DIR
+    db_url: str = _db_url()
+    worlds_config: Path = Path(os.getenv("WBS_WORLDS_CONFIG", PACKAGE_DATA / "worlds2026.yaml"))
 
     # Scraping
     http_delay_s: float = float(os.getenv("WBS_HTTP_DELAY", "2.0"))
