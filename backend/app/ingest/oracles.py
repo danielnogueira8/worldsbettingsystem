@@ -48,12 +48,22 @@ def load_csv(path: str | Path, tier1_only: bool = True) -> list[dict]:
         .to_dict()
     )
 
+    # A league code can be "international" by name yet hold a single region's games, e.g.
+    # the LPL's Worlds qualifier is filed as WLDs. Only count an event as international
+    # when its teams come from more than one region.
+    single_region: dict[str, str] = {}
+    for league, g in df[df["league"].map(is_international)].groupby("league"):
+        regions = {home.get(t) for t in g["teamname"]} - {None}
+        if len(regions) == 1:
+            single_region[league] = regions.pop()
+
     out = []
     for gid, r in both.iterrows():
         league = r["league_b"]
-        intl = is_international(league)
-        br = home.get(r["teamname_b"]) or region_of_league(league) or "UNKNOWN"
-        rr = home.get(r["teamname_r"]) or region_of_league(league) or "UNKNOWN"
+        intl = is_international(league) and league not in single_region
+        fallback = single_region.get(league) or region_of_league(league) or "UNKNOWN"
+        br = home.get(r["teamname_b"]) or fallback
+        rr = home.get(r["teamname_r"]) or fallback
         gd = r.get("golddiffat15_b")
         out.append(
             {
