@@ -273,7 +273,26 @@ Timeline is tight. Play-in starts Oct 15. Swiss starts Oct 23. Prioritize accord
 
 ---
 
-## 7. Open questions for you
+## 7. Build status (Oct 11)
+
+| Phase | State |
+|---|---|
+| 0 Scaffold | Done. Monorepo, CI, SQLite, FastAPI, Vite |
+| 1 Data in | Code done. Oracle's Elixir loader, gol.gg scraper, GPR capture, Polymarket client. Not run live: the build sandbox had no access to those hosts |
+| 2 Ratings | Done. Bayesian Bradley-Terry with Laplace posterior; Elo baseline |
+| 3 Simulator | Done. Play-in, Swiss with 2026 draw rules, knockout seeding, conditioning on real results |
+| 4 Backtest | Done. Walk-forward, log loss, Brier, calibration, trust verdict |
+| 5 Edge engine | Done. Executable prices, interval filter, Kelly, overround check |
+| 6 Frontend | Done. Seven pages |
+| 7 Live ops | Needs real data loaded on a machine that can reach the sources |
+
+Changes from the original plan, decided while building:
+
+- Swiss pools and draw rules came from Riot's primer: pool 1 vs 4 and 2 vs 3 in round 1, no same-region round 1, 3-0 teams drawn against 3-2 teams in quarterfinals. Same-region avoidance in the knockout draw isn't modeled; the primer coverage didn't mention it.
+- Model uncertainty for futures comes from running the tournament many times per posterior draw (40 draws by 500 sims by default). The spread of per-draw results is the interval. It includes some Monte Carlo noise, which makes the filter slightly more conservative, not less.
+- Margin-of-victory term (gold diff at 15) is not built yet. It needs real data to tell whether it helps.
+
+## 8. Open questions for you
 
 1. Bankroll size and max per-position cap. Default in the plan is 5%.
 2. Do you want auto-execution eventually, or is a journal plus manual placement fine for this tournament? Affects whether we need wallet integration.
