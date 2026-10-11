@@ -135,8 +135,17 @@ def check_edges():
     for e in d["edges"]:
         kinds[e["kind"]] = kinds.get(e["kind"], 0) + 1
     typer.echo(f"kinds: {kinds}")
-    for e in d["edges"][:10]:
-        typer.echo(f"  {e['question'][:60]:60} {e['kind']:16} {e.get('edge')}")
+    by_event: dict[str, list] = {}
+    for e in d["edges"]:
+        by_event.setdefault(e.get("event") or "?", []).append(e)
+    for ev, rows in sorted(by_event.items()):
+        typer.echo(f"== {ev} ({len(rows)})")
+        for e in rows[:25]:
+            m = (e.get("model") or {}).get("p")
+            mp = f"{m:.3f}" if m is not None else "  -  "
+            mid = f"{e['mid']:.3f}" if e.get("mid") is not None else "  -  "
+            typer.echo(f"   {e['kind'][:12]:12} {e.get('subject') or '':12} model={mp} mid={mid} | "
+                       f"{e['question'][:70]}")
 
 
 @app.command()
