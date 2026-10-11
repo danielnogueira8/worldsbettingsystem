@@ -59,15 +59,17 @@ export type Bet = {
 
 export type EventResult = { id: number; stage: string; round: string; team_a: string; team_b: string; winner: string };
 
+export type Score = { a: number; b: number; p: number };
+export type MatchOdds = Interval & { game: number; scores: Score[] };
 export type MatchMarket = {
   market_id: string; question: string; bo: number; yes_team: string; slug: string | null;
   best_bid: number | null; best_ask: number | null; mid: number | null;
-  model: Interval & { game: number }; edge?: EdgeResult;
+  model: MatchOdds; edge?: EdgeResult;
 };
 export type Match = {
   a: string; b: string; bo: number; stage: string | null; round: string | null;
   start_time: string | null; winner: string | null; names: Record<string, string>;
-  model: Interval & { game: number }; markets: MatchMarket[];
+  model: MatchOdds; markets: MatchMarket[];
 };
 export type SwissGrid = {
   title: string; cols: string[];
@@ -76,6 +78,7 @@ export type SwissGrid = {
 export type Matches = {
   scheduled: Match[]; played: Match[]; names: Record<string, string>; message?: string;
   swiss_r1: { draw_date: string; grids: SwissGrid[] } | null;
+  champion: { team: string; p: number; lo: number; hi: number }[] | null;
 };
 
 export type Calib = { bin: string; n: number; pred: number; actual: number };

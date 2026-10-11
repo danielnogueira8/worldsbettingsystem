@@ -25,6 +25,7 @@ from .model import backtest as bt
 from .model.edge import Quote, evaluate, overround
 from .model.markets import classify, model_probability
 from .model.ratings import GameRow, RatingFit, RatingParams, fit
+from .model.series import score_probs
 from .model.tournament import EventState, Format, Simulator
 from .teams import resolve, worlds_teams
 
@@ -432,7 +433,13 @@ def matches() -> dict:
 
     def odds(a: str, b: str, bo: int) -> dict:
         m = sim.matchup(a, b, bo)
-        return {**m, "game": rf.game_prob(a, b)}
+        g = rf.game_prob(a, b)
+        scores = sorted(score_probs(g, bo), key=lambda x: -x[2])
+        return {
+            **m,
+            "game": g,
+            "scores": [{"a": sa, "b": sb, "p": round(pr, 4)} for sa, sb, pr in scores],
+        }
 
     found: dict[frozenset, dict] = {}
 
@@ -554,9 +561,16 @@ def matches() -> dict:
                 {"title": "Pool 2 vs Pool 3", "cols": pools[3], "rows": grid(pools[2], pools[3])},
             ],
         }
+    champion = None
+    lsim = latest_simulation()
+    if lsim:
+        c = lsim["teams"]["champion"]
+        top = sorted(c["p"].items(), key=lambda x: -x[1])[:4]
+        champion = [{"team": t, "p": p, "lo": c["lo"][t], "hi": c["hi"][t]} for t, p in top]
     return {
         "scheduled": scheduled,
         "played": played,
         "swiss_r1": swiss_r1,
+        "champion": champion,
         "names": {c: t.name for c, t in worlds_teams().items()},
     }

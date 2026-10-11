@@ -45,3 +45,18 @@ def game_prob_from_series(ps: float, best_of: int, tol: float = 1e-10) -> float:
 
 def sigmoid(x):
     return 1.0 / (1.0 + np.exp(-x))
+
+
+def score_probs(p: float, best_of: int) -> list[tuple[int, int, float]]:
+    """Probability of each final series score, from team A's per-game win probability.
+
+    Returns (a_wins, b_wins, prob) for every possible final score, summing to 1. A team
+    that wins n games has played n-1+k games before the last, any k of which it lost.
+    """
+    n = (best_of + 1) // 2
+    q = 1.0 - p
+    out = []
+    for k in range(n):
+        out.append((n, k, comb(n - 1 + k, k) * p**n * q**k))
+        out.append((k, n, comb(n - 1 + k, k) * q**n * p**k))
+    return out
