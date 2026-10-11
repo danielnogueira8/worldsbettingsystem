@@ -147,6 +147,10 @@ def create_app(schedule: bool = False) -> FastAPI:
             raise HTTPException(400, "unknown team code")
         return {"a": a, "b": b, "bo": bo, "game": lf[1].game_prob(a, b), **sim.matchup(a, b, bo)}
 
+    @app.get("/api/matches")
+    def matches():
+        return pipeline.matches()
+
     @app.get("/api/simulation")
     def simulation():
         return pipeline.latest_simulation() or {}

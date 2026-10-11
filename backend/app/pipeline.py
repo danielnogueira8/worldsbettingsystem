@@ -409,3 +409,154 @@ def clear_event_results() -> None:
     with session() as s:
         s.execute(delete(EventResult))
         s.commit()
+
+
+# ---------------------------------------------------------------------------- matches
+
+
+def matches() -> dict:
+    """Every matchup the system knows about, with model and market odds.
+
+    Scheduled: series markets on Polymarket (they reveal real draws), pairings entered in
+    the Results tab, and the play-in's other opening match once one is known (four teams,
+    two opening matches). Swiss round 1 before its draw: every legal pairing.
+    """
+    lf = latest_fit()
+    if not lf:
+        return {"scheduled": [], "played": [], "swiss_r1": None, "message": "no rating fit"}
+    rf = lf[1]
+    sim = build_simulator(rf, n_draws=400, sims_per_draw=1, seed=0)
+    cfg = worlds_config()
+    st = settings()
+    ticks = latest_ticks()
+
+    def odds(a: str, b: str, bo: int) -> dict:
+        m = sim.matchup(a, b, bo)
+        return {**m, "game": rf.game_prob(a, b)}
+
+    found: dict[frozenset, dict] = {}
+
+    def add(a, b, **kw):
+        key = frozenset((a, b))
+        row = found.setdefault(
+            key,
+            {
+                "a": a,
+                "b": b,
+                "bo": None,
+                "stage": None,
+                "round": None,
+                "start_time": None,
+                "winner": None,
+                "markets": [],
+            },
+        )
+        for k, v in kw.items():
+            if v is not None and row.get(k) is None:
+                row[k] = v
+        return row
+
+    with session() as s:
+        results = s.scalars(select(EventResult).order_by(EventResult.id)).all()
+        pms = s.scalars(select(PmMarket).where(~PmMarket.closed)).all()
+    for r in results:
+        bo = 5 if r.stage in ("play_in", "knockout") else None
+        add(r.team_a, r.team_b, bo=bo, stage=r.stage, round=r.round, winner=r.winner or None)
+
+    for m in pms:
+        raw = m.raw or {}
+        c = classify(m.question, m.event_title or "", m.group_item_title or "", raw.get("outcomes"))
+        if c.kind != "match":
+            continue
+        a, b, bo = c.subject.split("|")
+        stage = "play_in" if "play-in" in (m.event_title or "").lower() else None
+        row = add(a, b, stage=stage)
+        start = raw.get("start_time")
+        if start and not row["start_time"]:
+            row["start_time"] = start
+        t = ticks.get(m.id)
+        mk = {
+            "market_id": m.id,
+            "question": m.question,
+            "bo": int(bo),
+            "yes_team": a,
+            "best_bid": t.best_bid if t else None,
+            "best_ask": t.best_ask if t else None,
+            "mid": t.mid if t else None,
+            "slug": m.event_slug,
+        }
+        if int(bo) > 1:
+            row["bo"] = row["bo"] or int(bo)
+        row["markets"].append(mk)
+
+    # Play-in: four teams, two opening matches. One known opener fixes the other.
+    pi = list(cfg["play_in"]["teams"])
+    pi_pairs = [k for k, v in found.items() if k <= set(pi) and v["stage"] in ("play_in", None)]
+    if len(pi_pairs) == 1 and not any(r.stage == "play_in" and r.winner for r in results):
+        rest = sorted(set(pi) - set(pi_pairs[0]))
+        if len(rest) == 2:
+            add(rest[0], rest[1], bo=5, stage="play_in", round="opening (derived)")
+    for k, v in found.items():
+        if k <= set(pi) and v["stage"] is None:
+            v["stage"] = "play_in"
+        if v["stage"] == "play_in":
+            v["bo"] = v["bo"] or 5
+
+    scheduled, played = [], []
+    for row in found.values():
+        a, b = row["a"], row["b"]
+        if a not in sim.idx or b not in sim.idx:
+            continue
+        bo = row["bo"] or 1
+        row["bo"] = bo
+        row["model"] = odds(a, b, bo)
+        row["names"] = {a: worlds_teams()[a].name, b: worlds_teams()[b].name}
+        for mk in row["markets"]:
+            p = odds(mk["yes_team"], b if mk["yes_team"] == a else a, mk["bo"])
+            mk["model"] = p
+            if mk["best_bid"] is not None or mk["best_ask"] is not None:
+                mk["edge"] = evaluate(
+                    p,
+                    Quote(mk["best_bid"], mk["best_ask"]),
+                    fee=st.default_fee,
+                    bankroll=st.bankroll,
+                    kelly_mult=st.kelly_fraction,
+                    max_position_frac=st.max_position_frac,
+                ).to_json()
+        (played if row["winner"] else scheduled).append(row)
+    scheduled.sort(key=lambda r: (r["start_time"] or "9999", r["stage"] or "z", r["a"]))
+
+    # Swiss round 1 before the draw: pool 1 vs pool 4, pool 2 vs pool 3, no same region.
+    swiss_r1 = None
+    known_r1 = any(r.stage == "swiss" for r in results)
+    if not known_r1:
+        pools = {int(k): v for k, v in cfg["swiss"]["pools"].items()}
+        region = {c: t.region for c, t in worlds_teams().items()}
+
+        def grid(rows, cols):
+            out = []
+            for x in rows:
+                cells = []
+                for y in cols:
+                    if y == "PLAYIN_WINNER" or x == "PLAYIN_WINNER":
+                        cells.append({"opp": y, "allowed": True, "p": None})
+                    else:
+                        cells.append(
+                            {"opp": y, "allowed": region[x] != region[y], "p": odds(x, y, 1)["p"]}
+                        )
+                out.append({"team": x, "cells": cells})
+            return out
+
+        swiss_r1 = {
+            "draw_date": "2026-10-18",
+            "grids": [
+                {"title": "Pool 1 vs Pool 4", "cols": pools[4], "rows": grid(pools[1], pools[4])},
+                {"title": "Pool 2 vs Pool 3", "cols": pools[3], "rows": grid(pools[2], pools[3])},
+            ],
+        }
+    return {
+        "scheduled": scheduled,
+        "played": played,
+        "swiss_r1": swiss_r1,
+        "names": {c: t.name for c, t in worlds_teams().items()},
+    }
