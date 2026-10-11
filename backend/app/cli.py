@@ -144,8 +144,10 @@ def check_edges():
             m = (e.get("model") or {}).get("p")
             mp = f"{m:.3f}" if m is not None else "  -  "
             mid = f"{e['mid']:.3f}" if e.get("mid") is not None else "  -  "
-            typer.echo(f"   {e['kind'][:12]:12} {e.get('subject') or '':12} model={mp} mid={mid} | "
-                       f"{e['question'][:70]}")
+            typer.echo(
+                f"   {e['kind'][:12]:12} {e.get('subject') or '':12} model={mp} mid={mid} | "
+                f"{e['question'][:70]}"
+            )
 
 
 @app.command()
