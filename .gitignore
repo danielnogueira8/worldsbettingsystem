@@ -1,8 +1,12 @@
-data/
+data/*
+!data/worlds2026.yaml
+!data/gpr.example.csv
 *.sqlite
 *.db
 __pycache__/
 .venv/
+.pytest_cache/
+.ruff_cache/
 node_modules/
-dist/
+frontend/dist/
 .env
