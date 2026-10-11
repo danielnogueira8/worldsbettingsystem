@@ -28,3 +28,17 @@ def test_inverse():
 def test_rejects_even():
     with pytest.raises(ValueError):
         series_win_prob(0.5, 2)
+
+
+def test_score_probs():
+    from app.model.series import score_probs
+
+    for bo in (1, 3, 5):
+        for p in (0.2, 0.5, 0.7):
+            sp = score_probs(p, bo)
+            assert sum(x[2] for x in sp) == pytest.approx(1)
+            a_wins = sum(x[2] for x in sp if x[0] > x[1])
+            assert a_wins == pytest.approx(series_win_prob(p, bo))
+    sp = {(a, b): pr for a, b, pr in score_probs(0.6, 5)}
+    assert sp[(3, 0)] == pytest.approx(0.6**3)
+    assert len(sp) == 6

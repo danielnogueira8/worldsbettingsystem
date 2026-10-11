@@ -8,6 +8,8 @@ def test_matches_from_series_market_and_derived_play_in():
 
     demo.generate(seed=5, days=60)
     pipeline.fit_and_store()
+    pipeline.simulate_and_store(n_draws=20, sims_per_draw=5, seed=1)
+    pipeline.simulate_and_store(n_draws=20, sims_per_draw=5, seed=1)
     ev = {"id": 501, "title": "LoL: Cloud9 vs Karmine Corp (BO5) - Worlds Play-In",
           "slug": "lol-c9-kc"}
     series = parse_market({"id": "pm-c9kc", "question": ev["title"],
@@ -28,6 +30,12 @@ def test_matches_from_series_market_and_derived_play_in():
         assert {mk["bo"] for mk in c9kc["markets"]} == {5, 1}
         m = c9kc["model"]
         assert 0 < m["p"] < 1 and m["lo"] <= m["p"] <= m["hi"]
+        assert len(m["scores"]) == 6 and abs(sum(x["p"] for x in m["scores"]) - 1) < 1e-3
+        assert m["scores"][0]["p"] == max(x["p"] for x in m["scores"])
+        assert d["champion"] and d["champion"][0]["p"] >= d["champion"][1]["p"]
+        assert len(m["scores"]) == 6 and abs(sum(x["p"] for x in m["scores"]) - 1) < 1e-3
+        assert m["scores"][0]["p"] == max(x["p"] for x in m["scores"])
+        assert d["champion"] and d["champion"][0]["p"] >= d["champion"][1]["p"]
         # the other opener is implied: four play-in teams, two opening matches
         derived = pairs[frozenset(("MVK", "FURIA"))]
         assert derived["bo"] == 5 and "derived" in derived["round"]
