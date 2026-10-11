@@ -65,7 +65,7 @@ cd backend
 # 2. Riot GPR, used as a prior on team and region strength
 .venv/bin/wbs gpr-snapshot                    # or: wbs gpr-import my_gpr.csv
 
-# 3. Fill in the two CBLOL seeds in data/worlds2026.yaml (names and aliases)
+# 3. Fill in the two CBLOL seeds in backend/app/data/worlds2026.yaml (names and aliases)
 
 # 4. Fit, check it, simulate
 .venv/bin/wbs fit
@@ -98,6 +98,30 @@ pairings, and that's when prices tend to lag.
   Consistently beating the closing price is the signal.
 - Nothing here places orders. You place bets on Polymarket yourself.
 
+## Deploying to Vercel
+
+`vercel.json` deploys the repo as one Vercel project with two services:
+
+| Service | Root | Public path |
+|---|---|---|
+| `backend` (FastAPI) | `backend/` | `/api/*` |
+| `frontend` (Vite) | `frontend/` | everything else |
+
+Rewrites keep the request path, so `/api/teams` reaches FastAPI as `/api/teams`.
+The FastAPI entrypoint is set in `backend/pyproject.toml` under `[tool.vercel]`.
+Run `vercel dev` from the repo root to run both services together.
+
+Things that behave differently on Vercel:
+
+- **Storage.** The filesystem is read-only except `/tmp`, which is wiped between
+  invocations. Without `DATABASE_URL` the backend falls back to SQLite in `/tmp`, so
+  data won't persist. Attach a Postgres database and set `DATABASE_URL`.
+- **Background jobs.** `serve --schedule` doesn't run on Vercel. Price polling and
+  refits need an external trigger, such as Vercel Cron hitting the API, or keep the
+  scheduler running on your own machine against the same database.
+- **Data loading.** Load match data from your machine with the CLI, pointing
+  `DATABASE_URL` at the same Postgres database the deployment uses.
+
 ## Configuration
 
 Environment variables, all optional:
@@ -111,7 +135,7 @@ Environment variables, all optional:
 | `WBS_HALF_LIFE_DAYS` | 180 | Game weight halves every N days |
 | `WBS_INTL_WEIGHT` | 2.5 | Weight multiplier for international games |
 | `WBS_N_SIMS` | 20000 | Tournaments per simulation run |
-| `WBS_DB_URL` | `sqlite:///data/wbs.sqlite` | Any SQLAlchemy URL |
+| `WBS_DB_URL` or `DATABASE_URL` | `sqlite:///data/wbs.sqlite` | Any SQLAlchemy URL. Postgres URLs are used with psycopg 3 |
 
 ## Layout
 
@@ -122,5 +146,5 @@ backend/app/
   api/      FastAPI routes; also serves frontend/dist
   pipeline.py  cli.py  scheduler.py  demo.py
 frontend/src/pages/  Dashboard Simulation Teams Markets Results Backtest Journal
-data/worlds2026.yaml  teams, regions, pools, aliases
+backend/app/data/worlds2026.yaml  teams, regions, pools, aliases
 ```
