@@ -65,7 +65,7 @@ cd backend
 # 2. Riot GPR, used as a prior on team and region strength
 .venv/bin/wbs gpr-snapshot                    # or: wbs gpr-import my_gpr.csv
 
-# 3. Fill in the two CBLOL seeds in backend/app/data/worlds2026.yaml (names and aliases)
+# 3. Check the field in backend/app/field.py (teams, pools, aliases)
 
 # 4. Fit, check it, simulate
 .venv/bin/wbs fit
@@ -164,5 +164,5 @@ backend/app/
   api/      FastAPI routes; also serves frontend/dist
   pipeline.py  cli.py  scheduler.py  demo.py
 frontend/src/pages/  Dashboard Simulation Teams Markets Results Backtest Journal
-backend/app/data/worlds2026.yaml  teams, regions, pools, aliases
+backend/app/field.py  teams, regions, pools, aliases (YAML inside a .py: Vercel ships only .py)
 ```

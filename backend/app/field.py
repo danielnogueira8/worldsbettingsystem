@@ -1,3 +1,11 @@
+"""The Worlds 2026 field: teams, regions, pools and name aliases.
+
+Kept as YAML text inside a Python module because Vercel's Python bundler ships .py files
+but not data files: a separate worlds2026.yaml was missing at runtime there. Edit the
+YAML below. Set WBS_WORLDS_CONFIG to a file path to override it.
+"""
+
+WORLDS_2026_YAML = """\
 # Worlds 2026 field, per Riot's Worlds 2026 primer as reported by RFT.GG.
 # Verify against https://lolesports.com/news/worlds-2026-primer before relying on it.
 # `aliases` are used to match team names coming from gol.gg, Oracle's Elixir and Polymarket.
@@ -47,3 +55,4 @@ teams:
   MVK:    {name: MVK Esports,          region: LCP,   aliases: [MVK Esports, MVK]}
   LOS:    {name: LØS,                  region: CBLOL, aliases: [LØS, LOS, LØS Esports]}
   FURIA:  {name: FURIA,                region: CBLOL, aliases: [FURIA, FURIA Esports]}
+"""

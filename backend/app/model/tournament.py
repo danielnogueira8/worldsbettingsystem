@@ -1,6 +1,6 @@
 """Monte Carlo simulator for the Worlds 2026 format.
 
-Stages (per Riot's 2026 primer; see app/data/worlds2026.yaml):
+Stages (per Riot's 2026 primer; see app/field.py):
 
 * Play-In: 4 teams, double elimination, all Bo5, 1 team advances to Swiss pool 4.
 * Swiss: 16 teams, first to 3 wins advances, 3 losses eliminated. Bo3 when the match
