@@ -1,7 +1,7 @@
 # Worlds 2026 field, per Riot's Worlds 2026 primer as reported by RFT.GG.
 # Verify against https://lolesports.com/news/worlds-2026-primer before relying on it.
 # `aliases` are used to match team names coming from gol.gg, Oracle's Elixir and Polymarket.
-# CBLOL seeds were decided at the CBLOL Finals on Oct 10. Fill in the real names and aliases.
+# CBLOL: LØS won the Oct 10 final (Swiss pool 2); FURIA, the runner-up, plays the Play-In.
 
 tournament: Worlds 2026
 western_regions: [LEC, LCS, CBLOL]
@@ -9,12 +9,12 @@ western_regions: [LEC, LCS, CBLOL]
 play_in:
   advance: 1          # winner goes to Swiss pool 4
   best_of: 5
-  teams: [KC, C9, MVK, CBLOL2]
+  teams: [KC, C9, MVK, FURIA]
 
 swiss:
   pools:
     1: [GEN, AL, TL, G2]
-    2: [CBLOL1, TSW, HLE, BLG]
+    2: [LOS, TSW, HLE, BLG]
     3: [LYON, MKOI, T1, TES]
     4: [CFO, IG, DK, PLAYIN_WINNER]
   wins_to_advance: 3
@@ -45,5 +45,5 @@ teams:
   TSW:    {name: Team Secret Whales,   region: LCP,   aliases: [Team Secret Whales, TSW, Team Whales]}
   CFO:    {name: CTBC Flying Oyster,   region: LCP,   aliases: [CTBC Flying Oyster, CFO, Flying Oyster]}
   MVK:    {name: MVK Esports,          region: LCP,   aliases: [MVK Esports, MVK]}
-  CBLOL1: {name: CBLOL 1st seed,       region: CBLOL, aliases: []}
-  CBLOL2: {name: CBLOL 2nd seed,       region: CBLOL, aliases: []}
+  LOS:    {name: LØS,                  region: CBLOL, aliases: [LØS, LOS, LØS Esports]}
+  FURIA:  {name: FURIA,                region: CBLOL, aliases: [FURIA, FURIA Esports]}

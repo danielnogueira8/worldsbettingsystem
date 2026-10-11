@@ -86,8 +86,8 @@ def test_round_one_rules_and_bo_lengths(fmt):
 
 def test_conditioning_on_known_results(fmt):
     st = EventState(play_in={
-        "r1a": ("KC", "C9", "KC"), "r1b": ("MVK", "CBLOL2", "MVK"), "uf": ("KC", "MVK", "KC"),
-        "lr1": ("C9", "CBLOL2", "C9"), "lf": ("MVK", "C9", "MVK"), "gf": ("KC", "MVK", "KC"),
+        "r1a": ("KC", "C9", "KC"), "r1b": ("MVK", "FURIA", "MVK"), "uf": ("KC", "MVK", "KC"),
+        "lr1": ("C9", "FURIA", "C9"), "lf": ("MVK", "C9", "MVK"), "gf": ("KC", "MVK", "KC"),
     })
     res = make(fmt, state=st).run()["teams"]
     assert res["swiss"]["p"]["KC"] == 1.0
@@ -96,7 +96,7 @@ def test_conditioning_on_known_results(fmt):
     # Fix all of Swiss round 1 with GEN losing: GEN can no longer go 3-0
     pools = fmt.pools
     r1 = [("GEN", "CFO", "CFO"), ("AL", "DK", None), ("TL", "IG", None), ("G2", "KC", None),
-          ("CBLOL1", "MKOI", None), ("TSW", "T1", None), ("HLE", "TES", None),
+          ("LOS", "MKOI", None), ("TSW", "T1", None), ("HLE", "TES", None),
           ("BLG", "LYON", None)]
     assert all(a in pools[1] + pools[2] for a, *_ in r1)
     st.swiss_rounds = [r1]

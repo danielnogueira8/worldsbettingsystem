@@ -44,7 +44,7 @@ class GameRow:
 @dataclass
 class RatingParams:
     half_life_days: float = 180.0
-    international_weight: float = 2.5
+    international_weight: float = 1.0
     team_prior_sd: float = 1.0
     region_prior_sd: float = 0.5
     side_prior_sd: float = 0.25

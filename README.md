@@ -133,7 +133,7 @@ Environment variables, all optional:
 | `WBS_MAX_POSITION` | 0.05 | Max stake as a fraction of bankroll |
 | `WBS_DEFAULT_FEE` | 0 | Fee per $1, used when the market doesn't report one |
 | `WBS_HALF_LIFE_DAYS` | 180 | Game weight halves every N days |
-| `WBS_INTL_WEIGHT` | 2.5 | Weight multiplier for international games |
+| `WBS_INTL_WEIGHT` | 1.0 | Weight multiplier for international games. 2.5 backtested worse on 2026 data |
 | `WBS_N_SIMS` | 20000 | Tournaments per simulation run |
 | `WBS_DB_URL` or `DATABASE_URL` | `sqlite:///data/wbs.sqlite` | Any SQLAlchemy URL. Postgres URLs are used with psycopg 3 |
 

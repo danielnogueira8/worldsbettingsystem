@@ -41,7 +41,7 @@ class Settings:
 
     # Rating model
     half_life_days: float = float(os.getenv("WBS_HALF_LIFE_DAYS", "180"))
-    international_weight: float = float(os.getenv("WBS_INTL_WEIGHT", "2.5"))
+    international_weight: float = float(os.getenv("WBS_INTL_WEIGHT", "1.0"))
     team_prior_sd: float = float(os.getenv("WBS_TEAM_PRIOR_SD", "1.0"))
     region_prior_sd: float = float(os.getenv("WBS_REGION_PRIOR_SD", "0.5"))
 
