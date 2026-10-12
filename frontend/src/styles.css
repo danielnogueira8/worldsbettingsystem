@@ -186,3 +186,11 @@ td.q { min-width: 180px; }
 @media (max-width: 640px) {
   .wide-only { display: none; }
 }
+table.mini { margin-top: 8px; font-size: 12.5px; }
+table.mini td:first-child { min-width: 120px; }
+.match { min-width: 0; }
+@media (max-width: 640px) {
+  table.mini th, table.mini td { padding-left: 4px; padding-right: 4px; white-space: normal; }
+  table.mini td:first-child { min-width: 0; }
+  table.mini .pill { padding: 1px 5px; font-size: 11px; }
+}

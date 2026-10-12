@@ -1,8 +1,16 @@
-import { api, pct, type Match, type SwissGrid } from "../api";
+import { api, pct, type Match, type MatchMarket, type SwissGrid } from "../api";
 import { useLoad } from "../hooks";
 import Heat from "../components/Heat";
+import { best, quoteSides, type Side } from "../value";
 
-const points = (x: number) => `${Math.abs(x * 100).toFixed(1)} points`;
+const signed = (x: number, d = 0) => `${x >= 0 ? "+" : "−"}${Math.abs(x * 100).toFixed(d)}`;
+
+/** Both sides of one match market, labelled in plain words. */
+function marketSides(m: Match, mk: MatchMarket): Side[] {
+  const y = mk.yes_team, n = y === m.a ? m.b : m.a;
+  const what = mk.bo > 1 ? `the Bo${mk.bo}` : (mk.question.match(/game\s*\d+/i)?.[0]?.toLowerCase() ?? "the game");
+  return quoteSides(`${m.names[y]} wins ${what}`, `${m.names[n]} wins ${what}`, mk.model, mk.best_bid, mk.best_ask);
+}
 
 const STAGE: Record<string, string> = { play_in: "Play-In", swiss: "Swiss", knockout: "Knockout" };
 
@@ -43,7 +51,7 @@ export default function MatchesPage() {
         <h2>Upcoming matches</h2>
         <p className="desc">
           Only matches whose draw is known. Blue and orange show the model's split between the two teams;
-          the black tick is where the betting market puts it.
+          the black tick is where the betting market puts it. The table compares our chance with the price for every side on offer: value is the expected return per dollar if our chance is right.
         </p>
         <div className="match-list">
           {scheduled.map((m) => <MatchCard key={`${m.a}-${m.b}`} m={m} />)}
@@ -102,21 +110,21 @@ function MatchCard({ m }: { m: Match }) {
 
   const series = m.markets.find((mk) => mk.bo === m.bo) ?? m.markets.find((mk) => mk.bo > 1);
   const mktA = series?.mid == null ? null : series.yes_team === m.a ? series.mid : 1 - series.mid;
-  const e = series?.edge;
-  const games = m.markets.filter((mk) => mk.bo === 1).length;
+  // Series market first, then single games in question order.
+  const ordered = [...m.markets].sort((x, y) => (y.bo - x.bo) || x.question.localeCompare(y.question));
+  const rows = ordered.flatMap((mk) => marketSides(m, mk));
 
   let value: { text: string; good: boolean };
-  if (!series) value = { text: "No betting market for this match yet.", good: false };
-  else if (!e || !e.side) value = { text: "Market has no live prices yet.", good: false };
+  if (!m.markets.length) value = { text: "No betting market for this match yet.", good: false };
+  else if (!rows.length) value = { text: "Market has no live prices yet.", good: false };
   else {
-    const other = series.yes_team === m.a ? m.b : m.a;
-    const backed = m.names[e.side === "YES" ? series.yes_team : other];
-    const price = e.price != null ? `${Math.round(e.price * 100)}¢` : "";
-    value = e.flagged
-      ? { text: `Bet: back ${backed} at ${price}. The model's worst case still beats that price by ${points(e.conservative_edge)}.`, good: true }
-      : e.edge > 0
-        ? { text: `${backed} is ${points(e.edge)} cheaper than the model's fair price, but that's within the model's uncertainty. No bet.`, good: false }
-        : { text: "The market's price is fair or better than the model's view on both sides. No bet.", good: false };
+    const t = best(rows);
+    const vs = `our ${pct(t.ours, 0)} vs the market's ${pct(t.price, 0)}`;
+    value = t.verdict === "value"
+      ? { text: `Bet: ${t.label} at ${Math.round(t.price * 100)}¢. That's ${vs}, ${signed(t.value)}% value, and still positive in the model's cautious case.`, good: true }
+      : t.verdict === "maybe"
+        ? { text: `Closest to value: ${t.label}, ${vs} (${signed(t.value)}% value). Within the model's uncertainty, so no bet.`, good: false }
+        : { text: "The market prices every side at or above our chances. No bet.", good: false };
   }
 
   return (
@@ -140,10 +148,39 @@ function MatchCard({ m }: { m: Match }) {
         <span>Model: {A} {pct(pa, 0)} · {B} {pct(1 - pa, 0)}</span>
         <span>{mktA != null ? `Market: ${A} ${pct(mktA, 0)} · ${B} ${pct(1 - mktA, 0)}` : "No market price"}</span>
       </div>
-      <div className={`value ${value.good ? "good" : ""}`}>
-        {value.text}
-        {games > 0 && <span className="muted"> {games} single-game market{games > 1 ? "s" : ""} on the Edges tab.</span>}
-      </div>
+      <div className={`value ${value.good ? "good" : ""}`}>{value.text}</div>
+      {rows.length > 0 && (
+        <div className="table-wrap">
+          <table className="mini">
+            <thead>
+              <tr>
+                <th>Bet</th>
+                <th className="num">Our chance</th>
+                <th className="num">Market's</th>
+                <th className="num wide-only">Difference</th>
+                <th className="num">Value</th>
+                <th></th>
+              </tr>
+            </thead>
+            <tbody>
+              {rows.map((r) => (
+                <tr key={r.label}>
+                  <td>{r.label}</td>
+                  <td className="num"><strong>{pct(r.ours, 0)}</strong></td>
+                  <td className="num">{pct(r.price, 0)}</td>
+                  <td className={`num wide-only ${r.diff > 0 ? "pos" : "neg"}`}>{signed(r.diff, 1)} pts</td>
+                  <td className={`num ${r.value > 0 ? "pos" : "neg"}`}><strong>{signed(r.value)}%</strong></td>
+                  <td>
+                    {r.verdict === "value" ? <span className="pill good">✓ Value</span>
+                      : r.verdict === "maybe" ? <span className="pill neutral" title="Positive on our central estimate, not in the cautious case">Maybe</span>
+                      : null}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
     </div>
   );
 }

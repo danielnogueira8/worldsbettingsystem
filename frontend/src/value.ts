@@ -52,15 +52,22 @@ function side(s: "YES" | "NO", label: string, ours: number, oursLow: number, pri
            fairOdds: 1 / ours, marketOdds: 1 / price, verdict };
 }
 
+type Model = { p: number; lo: number; hi: number };
+
+/** Both sides of one quote: YES at the ask, NO at 1 - bid. Empty if there's no usable price. */
+export function quoteSides(yes: string, no: string, m: Model, bid: number | null, ask: number | null): Side[] {
+  const out: Side[] = [];
+  if (ask != null && ask > 0 && ask < 1) out.push(side("YES", yes, m.p, m.lo, ask));
+  if (bid != null && bid > 0 && bid < 1) out.push(side("NO", no, 1 - m.p, 1 - m.hi, 1 - bid));
+  return out.filter((s) => s.ours > 0);
+}
+
 /** Both sides of a market with a model price and a live quote; null if either is missing. */
 export function sides(r: EdgeRow, names: Record<string, string>): Side[] | null {
   if (!r.model) return null;
   const [yesLabel, noLabel] = describe(r, names);
-  const out: Side[] = [];
-  const { p, lo, hi } = r.model;
-  if (r.best_ask != null && r.best_ask > 0 && r.best_ask < 1) out.push(side("YES", yesLabel, p, lo, r.best_ask));
-  if (r.best_bid != null && r.best_bid > 0 && r.best_bid < 1) out.push(side("NO", noLabel, 1 - p, 1 - hi, 1 - r.best_bid));
-  return out.length ? out.filter((s) => s.ours > 0) : null;
+  const out = quoteSides(yesLabel, noLabel, r.model, r.best_bid, r.best_ask);
+  return out.length ? out : null;
 }
 
 export const best = (ss: Side[]) => ss.reduce((a, b) => (b.value > a.value ? b : a));
