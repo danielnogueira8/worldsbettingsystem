@@ -1,30 +1,44 @@
 import { useMemo, useState } from "react";
 import { api, pct, pp, ago, type EdgeRow, type Status } from "../api";
 import { useAction, useLoad } from "../hooks";
-import IntervalBar from "../components/IntervalBar";
+import { best, sides, stake, type Side } from "../value";
 
 const KIND_LABEL: Record<string, string> = {
-  champion: "Win Worlds", final: "Reach final", semis: "Reach semis", knockout: "Reach knockout",
-  swiss_3_0: "Swiss 3-0", swiss_0_3: "Swiss 0-3", region_champion: "Winning region",
-  western_champion: "Western winner", match: "Match",
+  champion: "Winner", final: "Grand final", semis: "Semifinal", knockout: "Knockout",
+  swiss_3_0: "Swiss 3-0", swiss_0_3: "Swiss 0-3", region_champion: "Region",
+  western_champion: "Region", match: "Match",
 };
 
 export default function Dashboard({ status, onChange }: { status: Status | null; onChange: () => void }) {
   const edges = useLoad(api.edges, [], 60000);
   const { busy, msg, run } = useAction();
-  const [onlyFlagged, setOnlyFlagged] = useState(false);
-  const [showUnsupported, setShowUnsupported] = useState(false);
+  const teams = useLoad(api.teams);
+  const names = useMemo(
+    () => Object.fromEntries((teams.data?.teams ?? []).map((t) => [t.code, t.name])),
+    [teams.data],
+  );
+  const [onlyValue, setOnlyValue] = useState(false);
+  const [kind, setKind] = useState("all");
   const after = () => { edges.reload(); onChange(); };
 
   const rows = useMemo(() => {
-    let r = edges.data?.edges ?? [];
-    if (!showUnsupported) r = r.filter((e) => e.kind !== "unsupported");
-    if (onlyFlagged) r = r.filter((e) => e.edge?.flagged);
-    return r;
-  }, [edges.data, onlyFlagged, showUnsupported]);
+    const out: { r: EdgeRow; s: Side }[] = [];
+    for (const r of edges.data?.edges ?? []) {
+      if (r.kind === "unsupported") continue;
+      if (kind !== "all" && KIND_LABEL[r.kind] !== kind) continue;
+      const ss = sides(r, names);
+      if (!ss || !ss.length) continue;
+      const s = best(ss);
+      if (onlyValue && s.verdict === "none") continue;
+      out.push({ r, s });
+    }
+    return out.sort((a, b) => b.s.value - a.s.value);
+  }, [edges.data, names, onlyValue, kind]);
 
   const trusted = status?.backtest_verdict?.trust ?? false;
-  const nUnsupported = (edges.data?.edges ?? []).filter((e) => e.kind === "unsupported").length;
+  const kinds = ["all", ...Array.from(new Set(Object.values(KIND_LABEL)))];
+  const nValue = rows.filter((x) => x.s.verdict === "value").length;
+  const bank = status?.bankroll ?? 1000, kf = status?.kelly_fraction ?? 0.25, cap = status?.max_position ?? 0.05;
 
   return (
     <>
@@ -56,36 +70,66 @@ export default function Dashboard({ status, onChange }: { status: Status | null;
       ))}
 
       <div className="card">
-        <div className="row" style={{ marginBottom: 8 }}>
-          <div>
-            <h2>Edges</h2>
-            <p className="desc">
-              Executable prices only: buy YES at the ask, buy NO at one minus the bid. A row is flagged only if the
-              pessimistic end of the model's 90% interval still beats the price.
-              {!trusted && " Stakes shown are what Kelly would say. Don't bet them until the backtest passes."}
-            </p>
-          </div>
+        <h2>Value: our chance vs the market's</h2>
+        <p className="desc">
+          The market's chance is the price you'd pay per $1 payout: 33¢ means the market says 33%. Value is what
+          $1 returns on average if our chance is right: +20% means $1.20 back. "Cautious" redoes that at the
+          pessimistic end of the model's range. Each row shows the better of the two sides of a market.
+          {!trusted && " The model isn't validated against market prices yet, so treat value as a lead to check, not a bet."}
+        </p>
+        <div className="row" style={{ marginBottom: 10 }}>
+          <select value={kind} onChange={(e) => setKind(e.target.value)} aria-label="Market type">
+            {kinds.map((k) => <option key={k} value={k}>{k === "all" ? "All markets" : k}</option>)}
+          </select>
+          <label className="inline"><input type="checkbox" checked={onlyValue} onChange={(e) => setOnlyValue(e.target.checked)} /> Positive value only</label>
           <span className="spacer" />
-          <label className="inline"><input type="checkbox" checked={onlyFlagged} onChange={(e) => setOnlyFlagged(e.target.checked)} /> Flagged only</label>
-          <label className="inline"><input type="checkbox" checked={showUnsupported} onChange={(e) => setShowUnsupported(e.target.checked)} /> Show unpriced ({nUnsupported})</label>
+          <span className="small muted">{rows.length} markets · {nValue} with value</span>
         </div>
         {edges.error && <div className="banner critical">{edges.error}</div>}
         <div className="table-wrap">
           <table>
             <thead>
               <tr>
-                <th>Market</th><th>Type</th>
-                <th>Model · interval · <span style={{ color: "var(--series-2)" }}>▮</span> market</th>
-                <th className="num">Model</th><th className="num">Bid</th><th className="num">Ask</th>
-                <th>Side</th><th className="num">Edge</th><th className="num">Worst case</th>
-                <th className="num">Stake</th><th>Status</th>
+                <th>Bet</th>
+                <th className="num">Our chance</th>
+                <th className="num">Market's chance</th>
+                <th className="num">Difference</th>
+                <th className="num wide-only">Fair odds</th>
+                <th className="num wide-only">Market odds</th>
+                <th className="num">Value</th>
+                <th className="num">Cautious</th>
+                <th>Verdict</th>
               </tr>
             </thead>
             <tbody>
-              {rows.map((r) => <EdgeRowView key={r.market_id} r={r} />)}
+              {rows.map(({ r, s }) => (
+                <tr key={r.market_id}>
+                  <td className="q">
+                    {s.label}
+                    <div className="muted small">
+                      {KIND_LABEL[r.kind]} · {s.side === "YES" ? "buy YES" : "buy NO"}
+                      {r.volume != null && ` · $${Math.round(r.volume).toLocaleString()} traded`} · price {ago(r.tick_ts)}
+                    </div>
+                  </td>
+                  <td className="num"><strong>{pct(s.ours)}</strong></td>
+                  <td className="num">{pct(s.price)}</td>
+                  <td className={`num ${s.diff > 0 ? "pos" : "neg"}`}>{s.diff >= 0 ? "+" : "−"}{Math.abs(s.diff * 100).toFixed(1)} pts</td>
+                  <td className="num muted wide-only">{s.fairOdds < 100 ? s.fairOdds.toFixed(2) : "99+"}</td>
+                  <td className="num wide-only">{s.marketOdds < 100 ? s.marketOdds.toFixed(2) : "99+"}</td>
+                  <td className={`num ${s.value > 0 ? "pos" : "neg"}`}><strong>{s.value >= 0 ? "+" : "−"}{Math.abs(s.value * 100).toFixed(0)}%</strong></td>
+                  <td className={`num ${s.valueLow > 0 ? "pos" : "muted"}`}>{s.valueLow >= 0 ? "+" : "−"}{Math.abs(s.valueLow * 100).toFixed(0)}%</td>
+                  <td>
+                    {s.verdict === "value"
+                      ? <span className="pill good" title={`Quarter-Kelly stake on $${bank}`}>✓ Value · ${stake(s, bank, kf, cap).toFixed(0)}</span>
+                      : s.verdict === "maybe"
+                        ? <span className="pill neutral" title="Positive on our central estimate, but not at the cautious end">Maybe</span>
+                        : <span className="pill neutral">No value</span>}
+                  </td>
+                </tr>
+              ))}
               {!rows.length && (
-                <tr><td colSpan={11} className="muted">
-                  {edges.loading ? "Loading…" : "No markets yet. Discover markets, then poll prices."}
+                <tr><td colSpan={9} className="muted">
+                  {edges.loading ? "Loading…" : "No priced markets with live quotes."}
                 </td></tr>
               )}
             </tbody>
@@ -93,36 +137,5 @@ export default function Dashboard({ status, onChange }: { status: Status | null;
         </div>
       </div>
     </>
-  );
-}
-
-function EdgeRowView({ r }: { r: EdgeRow }) {
-  const e = r.edge;
-  const max = r.model ? Math.min(1, Math.max(0.1, r.model.hi * 1.15, (r.best_ask ?? 0) * 1.15)) : 1;
-  return (
-    <tr>
-      <td className="q">
-        {r.slug && r.slug !== "demo"
-          ? <a href={`https://polymarket.com/event/${r.slug}`} target="_blank" rel="noreferrer">{r.question}</a>
-          : r.question}
-        <div className="muted small">
-          {r.volume != null && `$${Math.round(r.volume).toLocaleString()} vol · `}price {ago(r.tick_ts)}
-        </div>
-      </td>
-      <td className="small">{KIND_LABEL[r.kind] ?? <span className="muted" title={r.reason}>unpriced</span>}</td>
-      <td>{r.model ? <IntervalBar {...r.model} market={r.mid} max={max} /> : <span className="muted small">{r.reason}</span>}</td>
-      <td className="num">{r.model ? pct(r.model.p) : "–"}</td>
-      <td className="num">{pct(r.best_bid)}</td>
-      <td className="num">{pct(r.best_ask)}</td>
-      <td>{e?.side ?? "–"}</td>
-      <td className={`num ${e && e.edge > 0 ? "pos" : ""}`}>{e ? pp(e.edge) : "–"}</td>
-      <td className={`num ${e ? (e.conservative_edge > 0 ? "pos" : "neg") : ""}`}>{e ? pp(e.conservative_edge) : "–"}</td>
-      <td className="num">{e && e.stake > 0 ? `$${e.stake.toFixed(0)}` : "–"}</td>
-      <td>
-        {e?.flagged
-          ? <span className="pill good">✓ Bet</span>
-          : <span className="pill neutral" title={e?.reason}>{e ? "Pass" : "No quote"}</span>}
-      </td>
-    </tr>
   );
 }

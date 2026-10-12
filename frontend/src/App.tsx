@@ -11,7 +11,7 @@ import BacktestPage from "./pages/Backtest";
 import JournalPage from "./pages/Journal";
 
 const TABS = [
-  ["edges", "Edges"],
+  ["edges", "Value"],
   ["matches", "Matches"],
   ["sim", "Simulation"],
   ["teams", "Teams"],
